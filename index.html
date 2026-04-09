@@ -1,0 +1,964 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Portfolio Optimizer & Ask Strategy Simulator</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg: #f3f4f6;
+    --surface: #ffffff;
+    --border: #e5e7eb;
+    --text: #111827;
+    --text-muted: #6b7280;
+    --primary: #1e40af;
+    --primary-hover: #1e3a8a;
+    --primary-light: #dbeafe;
+    --success: #059669;
+    --warning: #d97706;
+    --warning-light: #fef3c7;
+    --danger: #dc2626;
+    --header: #0f172a;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    font-size: 14px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+  .app { display: flex; flex-direction: column; min-height: 100vh; }
+
+  .topbar {
+    background: var(--header);
+    color: white;
+    padding: 10px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 3px solid var(--primary);
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  .topbar-left { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+  .logo {
+    font-weight: 700;
+    font-size: 15px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: white;
+  }
+  .logo-mark {
+    width: 30px; height: 30px;
+    background: var(--primary);
+    border-radius: 6px;
+    display: grid;
+    place-items: center;
+    font-size: 13px;
+    font-weight: 800;
+  }
+  .topnav { display: flex; gap: 4px; flex-wrap: wrap; }
+  .topnav button {
+    background: transparent;
+    color: #cbd5e1;
+    border: none;
+    padding: 7px 14px;
+    font-size: 13px;
+    font-weight: 500;
+    border-radius: 4px;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .topnav button:hover { background: rgba(255,255,255,0.1); color: white; }
+  .topnav button.active { background: var(--primary); color: white; }
+  .topbar-right { display: flex; align-items: center; gap: 12px; font-size: 13px; color: #cbd5e1; }
+  .avatar {
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    background: var(--primary);
+    display: grid;
+    place-items: center;
+    font-weight: 600;
+    color: white;
+  }
+  .about-btn {
+    background: var(--primary);
+    color: white;
+    border: none;
+    padding: 7px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 600;
+    font-family: inherit;
+  }
+  .about-btn:hover { background: var(--primary-hover); }
+
+  .main { flex: 1; padding: 22px; max-width: 1600px; margin: 0 auto; width: 100%; }
+
+  .view { display: none; }
+  .view.active { display: block; }
+
+  .page-title { margin-bottom: 20px; }
+  .page-title h1 { font-size: 22px; font-weight: 700; color: var(--text); }
+  .page-title p { color: var(--text-muted); font-size: 13px; margin-top: 4px; }
+
+  .kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 16px;
+    margin-bottom: 20px;
+  }
+  .kpi {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px 18px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+  }
+  .kpi-label { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.6px; font-weight: 600; }
+  .kpi-value { font-size: 26px; font-weight: 700; margin-top: 6px; color: var(--text); }
+  .kpi-sub { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+  .kpi-sub.good { color: var(--success); }
+  .kpi-sub.bad { color: var(--danger); }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    margin-bottom: 16px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+  }
+  .card-header {
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+  }
+  .card-header h2 { font-size: 15px; font-weight: 600; }
+  .badge-ai {
+    background: linear-gradient(90deg, #6366f1, #8b5cf6);
+    color: white;
+    font-size: 10px;
+    padding: 3px 9px;
+    border-radius: 10px;
+    font-weight: 700;
+    letter-spacing: 0.4px;
+  }
+  .card-body { padding: 18px; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--border); }
+  th {
+    background: #f9fafb;
+    font-weight: 600;
+    font-size: 11px;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    letter-spacing: 0.4px;
+    position: sticky;
+    top: 0;
+    z-index: 1;
+  }
+  tbody tr:hover { background: #fafbfc; }
+  .mono { font-variant-numeric: tabular-nums; }
+
+  .pill {
+    display: inline-block;
+    padding: 2px 9px;
+    border-radius: 10px;
+    font-size: 11px;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .pill-identified { background: #e0e7ff; color: #3730a3; }
+  .pill-qualified { background: #dbeafe; color: #1e40af; }
+  .pill-cultivation { background: #fef3c7; color: #92400e; }
+  .pill-solicitation { background: #fed7aa; color: #9a3412; }
+  .pill-stewardship { background: #d1fae5; color: #065f46; }
+
+  .score-bar {
+    display: inline-block;
+    width: 60px;
+    height: 6px;
+    background: var(--border);
+    border-radius: 3px;
+    overflow: hidden;
+    vertical-align: middle;
+    margin-right: 6px;
+  }
+  .score-fill { height: 100%; background: var(--primary); }
+
+  .recommendation {
+    border-left: 4px solid var(--primary);
+    background: #fafbff;
+    padding: 13px 16px;
+    margin-bottom: 10px;
+    border-radius: 4px;
+  }
+  .recommendation:last-child { margin-bottom: 0; }
+  .recommendation.priority-high { border-left-color: var(--danger); background: #fff7f7; }
+  .recommendation.priority-medium { border-left-color: var(--warning); background: #fffcf4; }
+  .rec-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px; gap: 10px; }
+  .rec-title { font-weight: 600; font-size: 14px; }
+  .rec-ev { font-size: 13px; color: var(--success); font-weight: 700; white-space: nowrap; }
+  .rec-reason { font-size: 13px; color: var(--text-muted); margin-top: 4px; line-height: 1.5; }
+  .rec-action {
+    display: inline-block;
+    margin-top: 8px;
+    padding: 4px 11px;
+    background: var(--primary);
+    color: white;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 600;
+  }
+
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 900px) { .two-col { grid-template-columns: 1fr; } }
+
+  .sim-controls { display: flex; flex-direction: column; gap: 22px; }
+  .slider-row label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: 6px;
+  }
+  .slider-row label .val { color: var(--primary); font-weight: 700; font-variant-numeric: tabular-nums; }
+  input[type="range"] {
+    width: 100%;
+    accent-color: var(--primary);
+  }
+  .hint { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
+
+  .sim-result {
+    background: #f9fafb;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 14px 16px;
+    margin-bottom: 10px;
+  }
+  .sim-result:last-child { margin-bottom: 0; }
+  .sim-result-label { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600; }
+  .sim-result-value { font-size: 22px; font-weight: 700; margin-top: 4px; font-variant-numeric: tabular-nums; }
+  .sim-result-value.good { color: var(--success); }
+  .sim-result-value.bad { color: var(--danger); }
+
+  .modal-bg {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.65);
+    z-index: 100;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 40px 20px;
+    overflow-y: auto;
+  }
+  .modal-bg.open { display: flex; }
+  .modal {
+    background: white;
+    border-radius: 10px;
+    max-width: 720px;
+    width: 100%;
+    padding: 28px 32px;
+    position: relative;
+  }
+  .modal h2 { font-size: 20px; margin-bottom: 4px; }
+  .modal h3 { font-size: 13px; font-weight: 700; margin-top: 20px; margin-bottom: 6px; color: var(--primary); text-transform: uppercase; letter-spacing: 0.5px; }
+  .modal p { font-size: 13px; color: var(--text); margin-bottom: 10px; line-height: 1.65; }
+  .modal ul { font-size: 13px; margin-left: 18px; margin-bottom: 8px; }
+  .modal li { margin-bottom: 6px; line-height: 1.55; }
+  .modal-close {
+    position: absolute;
+    top: 14px;
+    right: 18px;
+    background: transparent;
+    border: none;
+    font-size: 24px;
+    cursor: pointer;
+    color: var(--text-muted);
+    font-family: inherit;
+    line-height: 1;
+  }
+  .disclaimer {
+    margin-top: 18px;
+    padding: 12px 14px;
+    background: var(--warning-light);
+    border-left: 3px solid var(--warning);
+    font-size: 12px;
+    border-radius: 4px;
+    line-height: 1.6;
+  }
+
+  .chart-wrap { position: relative; height: 280px; }
+
+  .filters {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 14px;
+    flex-wrap: wrap;
+  }
+  .filters input, .filters select {
+    padding: 7px 11px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    font-size: 13px;
+    font-family: inherit;
+    background: white;
+  }
+  .filters input { flex: 1; min-width: 200px; }
+
+  .footer {
+    text-align: center;
+    padding: 20px;
+    color: var(--text-muted);
+    font-size: 12px;
+    border-top: 1px solid var(--border);
+    margin-top: 30px;
+    background: white;
+  }
+  .footer a { color: var(--primary); text-decoration: none; font-weight: 600; }
+
+  .table-wrap { max-height: 580px; overflow-y: auto; border: 1px solid var(--border); border-radius: 6px; }
+  .table-wrap table { font-size: 13px; }
+
+  .empty-state { color: var(--text-muted); font-size: 13px; text-align: center; padding: 20px; }
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <div class="topbar-left">
+      <div class="logo">
+        <div class="logo-mark">AC</div>
+        Advancement Cloud
+      </div>
+      <nav class="topnav">
+        <button data-view="dashboard" class="active">Dashboard</button>
+        <button data-view="portfolio">Portfolio</button>
+        <button data-view="optimizer">AI Optimizer</button>
+        <button data-view="simulator">Scenario Simulator</button>
+      </nav>
+    </div>
+    <div class="topbar-right">
+      <button class="about-btn" id="aboutBtn">About this Prototype</button>
+      <span>Sarah Chen, Director of Development</span>
+      <div class="avatar">SC</div>
+    </div>
+  </header>
+
+  <main class="main">
+    <section class="view active" id="view-dashboard">
+      <div class="page-title">
+        <h1>Campaign Dashboard</h1>
+        <p>Capital Campaign FY26 · $50M Goal · 18 months remaining</p>
+      </div>
+      <div class="kpi-grid" id="kpiGrid"></div>
+      <div class="two-col">
+        <div class="card">
+          <div class="card-header"><h2>Pipeline by Stage</h2></div>
+          <div class="card-body"><div class="chart-wrap"><canvas id="stageChart"></canvas></div></div>
+        </div>
+        <div class="card">
+          <div class="card-header">
+            <h2>Top 5 Priorities Today</h2>
+            <span class="badge-ai">AI SUGGESTED</span>
+          </div>
+          <div class="card-body" id="topPriorities"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="view" id="view-portfolio">
+      <div class="page-title">
+        <h1>Prospect Portfolio</h1>
+        <p>All prospects assigned to the advancement team, sorted by expected value</p>
+      </div>
+      <div class="card">
+        <div class="card-body">
+          <div class="filters">
+            <input type="text" id="searchInput" placeholder="Search by name...">
+            <select id="stageFilter">
+              <option value="">All Stages</option>
+              <option>Identified</option>
+              <option>Qualified</option>
+              <option>Cultivation</option>
+              <option>Solicitation</option>
+              <option>Stewardship</option>
+            </select>
+            <select id="officerFilter">
+              <option value="">All Gift Officers</option>
+            </select>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Stage</th>
+                  <th>Capacity</th>
+                  <th>Affinity</th>
+                  <th>Expected Value</th>
+                  <th>Last Contact</th>
+                  <th>Touches</th>
+                  <th>Officer</th>
+                </tr>
+              </thead>
+              <tbody id="portfolioBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="view" id="view-optimizer">
+      <div class="page-title">
+        <h1>AI Portfolio Optimizer</h1>
+        <p>Identifies misallocated effort and ranks next-best actions across the entire portfolio, not just individual donors</p>
+      </div>
+      <div class="two-col">
+        <div class="card">
+          <div class="card-header">
+            <h2>Next Best Actions (Ranked)</h2>
+            <span class="badge-ai">AI REASONING</span>
+          </div>
+          <div class="card-body" id="nextBestActions"></div>
+        </div>
+        <div>
+          <div class="card">
+            <div class="card-header">
+              <h2>Under-Invested Prospects</h2>
+              <span class="badge-ai">NEGLECTED</span>
+            </div>
+            <div class="card-body" id="underInvested"></div>
+          </div>
+          <div class="card">
+            <div class="card-header">
+              <h2>Over-Invested Prospects</h2>
+              <span class="badge-ai">DIMINISHING RETURN</span>
+            </div>
+            <div class="card-body" id="overInvested"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="view" id="view-simulator">
+      <div class="page-title">
+        <h1>Ask Strategy Simulator</h1>
+        <p>Stress-test the campaign pipeline under different economic and execution scenarios using Monte Carlo simulation</p>
+      </div>
+      <div class="two-col">
+        <div class="card">
+          <div class="card-header"><h2>Scenario Inputs</h2></div>
+          <div class="card-body">
+            <div class="sim-controls">
+              <div class="slider-row">
+                <label>Campaign Goal <span class="val" id="goalVal">$50M</span></label>
+                <input type="range" id="goalSlider" min="10" max="150" value="50">
+                <div class="hint">Total dollars the campaign aims to raise</div>
+              </div>
+              <div class="slider-row">
+                <label>Economic Adjustment <span class="val" id="econVal">0%</span></label>
+                <input type="range" id="econSlider" min="-40" max="15" value="0">
+                <div class="hint">Macro shift affecting donor capacity and willingness</div>
+              </div>
+              <div class="slider-row">
+                <label>Top Prospects Lost <span class="val" id="lostVal">0</span></label>
+                <input type="range" id="lostSlider" min="0" max="15" value="0">
+                <div class="hint">What if the top N prospects drop out of the pipeline</div>
+              </div>
+              <div class="slider-row">
+                <label>Execution Quality <span class="val" id="execVal">100%</span></label>
+                <input type="range" id="execSlider" min="60" max="115" value="100">
+                <div class="hint">Gift officer effectiveness vs baseline</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header">
+            <h2>Simulated Outcome</h2>
+            <span class="badge-ai">MONTE CARLO · 1000 TRIALS</span>
+          </div>
+          <div class="card-body">
+            <div class="sim-result">
+              <div class="sim-result-label">Expected Pipeline Value</div>
+              <div class="sim-result-value" id="simEV">$0</div>
+            </div>
+            <div class="sim-result">
+              <div class="sim-result-label">Goal Coverage</div>
+              <div class="sim-result-value" id="simCoverage">0%</div>
+            </div>
+            <div class="sim-result">
+              <div class="sim-result-label">Probability of Hitting Goal</div>
+              <div class="sim-result-value" id="simProb">0%</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header"><h2>Outcome Distribution</h2></div>
+        <div class="card-body">
+          <div class="chart-wrap"><canvas id="distChart"></canvas></div>
+          <p class="hint" style="margin-top:10px">Green bars represent trials that met or exceeded the campaign goal. Gray bars fell short.</p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    Portfolio Optimizer &amp; Ask Strategy Simulator · Prototype v1.0 ·
+    Built by <a href="https://johnsimpson.io">John Simpson</a> ·
+    Synthetic data for demonstration only
+  </footer>
+</div>
+
+<div class="modal-bg" id="aboutModal">
+  <div class="modal">
+    <button class="modal-close" id="closeModal">×</button>
+    <h2>About This Prototype</h2>
+    <p style="color:var(--text-muted);margin-bottom:14px">A product concept demo for the fundraising intelligence market</p>
+
+    <h3>The Problem</h3>
+    <p>Fundraising intelligence platforms have converged on the same feature set. Wealth screening, capacity scores, AI-drafted emails, and contact report summarization are now table stakes across every vendor in the space. All of it operates at the individual donor level. None of it optimizes the gift officer's entire portfolio as a system, and none of it lets leadership stress-test campaign outcomes under realistic scenarios.</p>
+
+    <h3>The Opportunity</h3>
+    <p>A Director of Advancement managing a $50M capital campaign does not need another tool that drafts a friendlier email. They need to know which five prospects out of one hundred fifty deserve attention this week, which donors are consuming gift officer hours with diminishing returns, and whether the campaign is actually on track if the top three gifts soften by 30 percent.</p>
+
+    <h3>What This Prototype Demonstrates</h3>
+    <ul>
+      <li><strong>Portfolio-level optimization.</strong> Ranks next-best actions across the full prospect pool using a composite of expected value, stage, affinity, recency, and effort invested rather than a single-donor score.</li>
+      <li><strong>Misallocation detection.</strong> Flags over-invested prospects (high touches, low expected value) and under-invested prospects (high expected value, few touches). This is the gap no current vendor surfaces.</li>
+      <li><strong>Monte Carlo scenario simulation.</strong> Runs 1000 probabilistic trials in real time to show leadership the distribution of possible campaign outcomes and the probability of hitting goal under economic stress, top-prospect attrition, and execution quality shifts.</li>
+      <li><strong>Unified advancement shell.</strong> A mock Salesforce-style interface showing how this capability would layer alongside any existing fundraising CRM.</li>
+    </ul>
+
+    <h3>Why It Is Differentiated</h3>
+    <p>Major fundraising intelligence vendors launched assistant-style generative AI features throughout 2025 and into 2026. All of it operates at the single-donor level and focuses on content generation. Portfolio-level optimization and probabilistic scenario planning remain unclaimed territory in this market.</p>
+
+    <h3>Product Management Framing</h3>
+    <p><strong>Target user.</strong> Gift officer and Director of Advancement managing 100 to 200 active prospects toward a multi-year capital campaign goal.</p>
+    <p><strong>Key metrics.</strong> Pipeline coverage ratio, expected value lift per gift officer hour, reduction in wasted cultivation time, probability of hitting campaign goal, and forecast accuracy against actual closed gifts.</p>
+    <p><strong>Integration story.</strong> Reads from existing CRM donor records (Salesforce, Raiser's Edge NXT, Ellucian Advance). Writes back recommended next actions, urgency flags, and portfolio health scores. Zero workflow displacement for the gift officer.</p>
+
+    <div class="disclaimer">
+      <strong>Demo notes.</strong> All donor data is synthetically generated in the browser using a seeded random number generator, so the demo is reproducible across page loads. The AI recommendations are produced by deterministic scoring logic running locally, not a live language model. No data leaves your device. Built as a portfolio piece for Product Manager and Director of Product, Fintech roles.
+    </div>
+  </div>
+</div>
+
+<script>
+const FIRST = ['James','Margaret','Robert','Linda','William','Patricia','David','Barbara','Richard','Elizabeth','Thomas','Jennifer','Charles','Susan','Daniel','Jessica','Matthew','Sarah','Anthony','Karen','Mark','Nancy','Donald','Lisa','Steven','Betty','Paul','Helen','Andrew','Sandra','Joshua','Donna','Kenneth','Carol','Kevin','Ruth','Brian','Sharon','George','Michelle','Edward','Laura','Ronald','Emily','Timothy','Kimberly','Jason','Deborah','Jeffrey','Dorothy','Ryan','Amy','Jacob','Angela','Gary','Ashley','Nicholas','Brenda','Eric','Emma','Priya','Wei','Sofia','Hiroshi','Amara','Leila','Marco','Zara','Diego','Ingrid','Samuel','Rachel','Benjamin'];
+const LAST = ['Anderson','Bennett','Carter','Davidson','Edwards','Fitzgerald','Garcia','Harrison','Ibrahim','Jensen','Kowalski','Lancaster','Mitchell','Nakamura','OBrien','Patterson','Quinn','Rodriguez','Sullivan','Thompson','Underwood','Vasquez','Whitfield','Xavier','Young','Zimmerman','Ashford','Blackwood','Chen','Delacroix','Engel','Fontaine','Greenfield','Holloway','Iverson','Jamison','Kensington','Lindqvist','Moreau','Novak','Ostrander','Pemberton','Ramaswamy','Stratton','Tanaka'];
+const STAGES = ['Identified','Qualified','Cultivation','Solicitation','Stewardship'];
+const STAGE_WEIGHTS = [0.18, 0.25, 0.30, 0.15, 0.12];
+const STAGE_P_GIVE = { Identified: 0.06, Qualified: 0.20, Cultivation: 0.38, Solicitation: 0.62, Stewardship: 0.28 };
+const OFFICERS = ['S. Chen','M. Rodriguez','D. Patel','J. Callahan'];
+
+function mulberry32(a){
+  return function(){
+    a |= 0;
+    a = a + 0x6D2B79F5 | 0;
+    let t = Math.imul(a ^ a >>> 15, 1 | a);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+const rng = mulberry32(20260409);
+
+function pickWeighted(arr, weights){
+  const r = rng();
+  let sum = 0;
+  for (let i = 0; i < arr.length; i++){
+    sum += weights[i];
+    if (r < sum) return arr[i];
+  }
+  return arr[arr.length - 1];
+}
+
+function logNormalCapacity(){
+  const u1 = Math.max(rng(), 0.0001);
+  const u2 = rng();
+  const z = Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
+  const val = Math.exp(12.6 + z * 1.35);
+  return Math.round(Math.min(Math.max(val, 25000), 8000000) / 5000) * 5000;
+}
+
+function generateDonors(n){
+  const donors = [];
+  for (let i = 0; i < n; i++){
+    const stage = pickWeighted(STAGES, STAGE_WEIGHTS);
+    const capacity = logNormalCapacity();
+    const affinity = Math.round(25 + rng() * 75);
+    const recencyDays = Math.floor(rng() * 380);
+    const touches = Math.floor(rng() * 18);
+    const officer = OFFICERS[Math.floor(rng() * OFFICERS.length)];
+    const first = FIRST[Math.floor(rng() * FIRST.length)];
+    const last = LAST[Math.floor(rng() * LAST.length)];
+    donors.push({
+      id: 'D' + String(i + 1).padStart(4, '0'),
+      name: first + ' ' + last,
+      stage, capacity, affinity, recencyDays, touches, officer
+    });
+  }
+  for (let i = 0; i < 8; i++){
+    const d = donors[i];
+    d.capacity = Math.round((3000000 + rng() * 9000000) / 100000) * 100000;
+    d.stage = i < 4 ? 'Cultivation' : 'Solicitation';
+    d.affinity = Math.round(65 + rng() * 30);
+  }
+  donors.forEach(d => {
+    const baseP = STAGE_P_GIVE[d.stage];
+    const affinityFactor = 0.55 + (d.affinity / 100);
+    const recencyFactor = d.recencyDays < 30 ? 1.10 : d.recencyDays < 90 ? 1.0 : d.recencyDays < 180 ? 0.82 : 0.60;
+    d.pGive = Math.min(0.92, baseP * affinityFactor * recencyFactor);
+    d.expectedValue = Math.round(d.capacity * d.pGive);
+  });
+  return donors;
+}
+
+const DONORS = generateDonors(120);
+const DEFAULT_GOAL = 50000000;
+
+function fmt$(n){
+  if (n < 0) return '-' + fmt$(-n);
+  if (n >= 1000000) return '$' + (n / 1000000).toFixed(n >= 10000000 ? 0 : 1) + 'M';
+  if (n >= 1000) return '$' + Math.round(n / 1000) + 'K';
+  return '$' + n;
+}
+
+function generateReason(d){
+  const reasons = [];
+  if (d.recencyDays > 150) reasons.push('relationship cooling after ' + d.recencyDays + ' days of silence');
+  else if (d.recencyDays > 75) reasons.push(d.recencyDays + ' days since last contact');
+  if (d.affinity > 80) reasons.push('top-tier affinity (' + d.affinity + '/100)');
+  else if (d.affinity > 65) reasons.push('strong affinity');
+  if (d.stage === 'Solicitation') reasons.push('in active solicitation, ask timing is critical');
+  if (d.stage === 'Cultivation' && d.touches > 8) reasons.push('ready to advance to solicitation');
+  if (d.capacity > 2000000) reasons.push('major gift capacity (' + fmt$(d.capacity) + ')');
+  if (reasons.length === 0) reasons.push('solid pipeline position and engagement signal');
+  return reasons.slice(0, 2).join(', ') + '.';
+}
+
+function generateDetailedReason(d){
+  const parts = [
+    d.stage + ' stage',
+    d.recencyDays + 'd since contact',
+    fmt$(d.capacity) + ' capacity',
+    d.affinity + ' affinity',
+    d.touches + ' touches'
+  ];
+  return parts.join(' · ') + '. ' + generateReason(d);
+}
+
+function suggestAction(d){
+  if (d.stage === 'Identified') return 'Schedule discovery call';
+  if (d.stage === 'Qualified') return 'Send cultivation invitation';
+  if (d.stage === 'Cultivation' && d.touches > 6) return 'Advance to solicitation';
+  if (d.stage === 'Cultivation') return 'Personalized outreach or site visit';
+  if (d.stage === 'Solicitation') return 'Make the ask this week';
+  return 'Impact report and thank you';
+}
+
+function buildDashboard(){
+  const totalEV = DONORS.reduce((s, d) => s + d.expectedValue, 0);
+  const goal = DEFAULT_GOAL;
+  const coverage = totalEV / goal;
+  const active = DONORS.filter(d => d.stage !== 'Identified' && d.stage !== 'Stewardship').length;
+  const atRisk = DONORS.filter(d => d.recencyDays > 90 && (d.stage === 'Cultivation' || d.stage === 'Solicitation')).length;
+
+  document.getElementById('kpiGrid').innerHTML = `
+    <div class="kpi">
+      <div class="kpi-label">Total Pipeline EV</div>
+      <div class="kpi-value mono">${fmt$(totalEV)}</div>
+      <div class="kpi-sub">across ${DONORS.length} active prospects</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Goal Coverage</div>
+      <div class="kpi-value mono">${Math.round(coverage * 100)}%</div>
+      <div class="kpi-sub ${coverage >= 1 ? 'good' : 'bad'}">${fmt$(Math.abs(goal - totalEV))} ${coverage >= 1 ? 'above' : 'gap to'} goal</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Active Prospects</div>
+      <div class="kpi-value mono">${active}</div>
+      <div class="kpi-sub">Qualified through Solicitation</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">At Risk</div>
+      <div class="kpi-value mono">${atRisk}</div>
+      <div class="kpi-sub bad">no contact in 90+ days</div>
+    </div>
+  `;
+
+  const byStage = {};
+  STAGES.forEach(s => byStage[s] = { count: 0, ev: 0 });
+  DONORS.forEach(d => { byStage[d.stage].count++; byStage[d.stage].ev += d.expectedValue; });
+
+  new Chart(document.getElementById('stageChart').getContext('2d'), {
+    type: 'bar',
+    data: {
+      labels: STAGES,
+      datasets: [
+        {
+          label: 'Expected Value ($M)',
+          data: STAGES.map(s => +(byStage[s].ev / 1000000).toFixed(2)),
+          backgroundColor: '#1e40af',
+          yAxisID: 'y',
+          borderRadius: 4
+        },
+        {
+          label: 'Prospect Count',
+          data: STAGES.map(s => byStage[s].count),
+          backgroundColor: '#94a3b8',
+          yAxisID: 'y1',
+          borderRadius: 4
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { position: 'bottom', labels: { font: { size: 11 } } } },
+      scales: {
+        y: { position: 'left', title: { display: true, text: 'Expected Value ($M)' } },
+        y1: { position: 'right', title: { display: true, text: 'Prospect Count' }, grid: { display: false } }
+      }
+    }
+  });
+
+  const urgencyScore = d => d.expectedValue * (1 + Math.min(d.recencyDays / 40, 5) * 0.35) *
+    (d.stage === 'Solicitation' ? 2.2 : d.stage === 'Cultivation' ? 1.5 : d.stage === 'Qualified' ? 1.1 : 0.8);
+  const top5 = [...DONORS].sort((a, b) => urgencyScore(b) - urgencyScore(a)).slice(0, 5);
+
+  document.getElementById('topPriorities').innerHTML = top5.map(d => {
+    const priority = d.recencyDays > 120 ? 'high' : d.recencyDays > 60 ? 'medium' : '';
+    return `<div class="recommendation priority-${priority}">
+      <div class="rec-header">
+        <div class="rec-title">${d.name} <span class="pill pill-${d.stage.toLowerCase()}">${d.stage}</span></div>
+        <div class="rec-ev">${fmt$(d.expectedValue)}</div>
+      </div>
+      <div class="rec-reason">${generateReason(d)}</div>
+    </div>`;
+  }).join('');
+}
+
+function buildPortfolio(){
+  const officerSet = [...new Set(DONORS.map(d => d.officer))].sort();
+  const officerSelect = document.getElementById('officerFilter');
+  officerSet.forEach(o => {
+    const opt = document.createElement('option');
+    opt.textContent = o;
+    officerSelect.appendChild(opt);
+  });
+  renderPortfolio();
+  document.getElementById('searchInput').addEventListener('input', renderPortfolio);
+  document.getElementById('stageFilter').addEventListener('change', renderPortfolio);
+  document.getElementById('officerFilter').addEventListener('change', renderPortfolio);
+}
+
+function renderPortfolio(){
+  const q = document.getElementById('searchInput').value.toLowerCase();
+  const st = document.getElementById('stageFilter').value;
+  const of = document.getElementById('officerFilter').value;
+  const rows = DONORS.filter(d => {
+    if (q && !d.name.toLowerCase().includes(q)) return false;
+    if (st && d.stage !== st) return false;
+    if (of && d.officer !== of) return false;
+    return true;
+  }).sort((a, b) => b.expectedValue - a.expectedValue);
+
+  document.getElementById('portfolioBody').innerHTML = rows.map(d => `
+    <tr>
+      <td><strong>${d.name}</strong><br><span style="color:var(--text-muted);font-size:11px">${d.id}</span></td>
+      <td><span class="pill pill-${d.stage.toLowerCase()}">${d.stage}</span></td>
+      <td class="mono">${fmt$(d.capacity)}</td>
+      <td><span class="score-bar"><span class="score-fill" style="width:${d.affinity}%"></span></span>${d.affinity}</td>
+      <td class="mono"><strong>${fmt$(d.expectedValue)}</strong></td>
+      <td class="mono">${d.recencyDays}d ago</td>
+      <td class="mono">${d.touches}</td>
+      <td>${d.officer}</td>
+    </tr>
+  `).join('') || '<tr><td colspan="8" class="empty-state">No prospects match the current filters.</td></tr>';
+}
+
+function buildOptimizer(){
+  const scored = DONORS.map(d => {
+    const urgency = Math.min(d.recencyDays / 35, 6);
+    const stageMult = d.stage === 'Solicitation' ? 2.3 : d.stage === 'Cultivation' ? 1.55 : d.stage === 'Qualified' ? 1.1 : d.stage === 'Stewardship' ? 0.7 : 0.85;
+    const score = d.expectedValue * (1 + urgency * 0.32) * stageMult;
+    return { ...d, score };
+  });
+  const top = [...scored].sort((a, b) => b.score - a.score).slice(0, 8);
+
+  document.getElementById('nextBestActions').innerHTML = top.map((d, i) => {
+    const action = suggestAction(d);
+    const priority = i < 3 ? 'high' : i < 6 ? 'medium' : '';
+    return `<div class="recommendation priority-${priority}">
+      <div class="rec-header">
+        <div class="rec-title">#${i + 1} ${d.name} <span class="pill pill-${d.stage.toLowerCase()}">${d.stage}</span></div>
+        <div class="rec-ev">${fmt$(d.expectedValue)}</div>
+      </div>
+      <div class="rec-reason">${generateDetailedReason(d)}</div>
+      <div class="rec-action">${action}</div>
+    </div>`;
+  }).join('');
+
+  const sortedByEV = [...DONORS].sort((a, b) => b.expectedValue - a.expectedValue);
+  const topEVThreshold = sortedByEV[Math.floor(sortedByEV.length * 0.3)].expectedValue;
+  const under = DONORS
+    .filter(d => d.expectedValue >= topEVThreshold && d.touches < 4 && d.stage !== 'Stewardship')
+    .sort((a, b) => b.expectedValue - a.expectedValue)
+    .slice(0, 5);
+
+  document.getElementById('underInvested').innerHTML = under.length ? under.map(d => `
+    <div class="recommendation">
+      <div class="rec-header">
+        <div class="rec-title">${d.name}</div>
+        <div class="rec-ev">${fmt$(d.expectedValue)}</div>
+      </div>
+      <div class="rec-reason">High potential (${fmt$(d.capacity)} capacity, ${d.affinity} affinity) but only ${d.touches} touches logged. Likely under-cultivated and a priority re-engagement target.</div>
+    </div>
+  `).join('') : '<p class="empty-state">No under-invested prospects detected.</p>';
+
+  const lowEVThreshold = sortedByEV[Math.floor(sortedByEV.length * 0.6)].expectedValue;
+  const over = DONORS
+    .filter(d => d.expectedValue <= lowEVThreshold && d.touches > 9)
+    .sort((a, b) => b.touches - a.touches)
+    .slice(0, 5);
+
+  document.getElementById('overInvested').innerHTML = over.length ? over.map(d => `
+    <div class="recommendation">
+      <div class="rec-header">
+        <div class="rec-title">${d.name}</div>
+        <div class="rec-ev" style="color:var(--warning)">${d.touches} touches</div>
+      </div>
+      <div class="rec-reason">${d.touches} touches invested but expected value is only ${fmt$(d.expectedValue)}. Consider deprioritizing or moving to stewardship to free gift officer hours.</div>
+    </div>
+  `).join('') : '<p class="empty-state">No over-invested prospects detected.</p>';
+}
+
+let distChart = null;
+
+function buildSimulator(){
+  ['goalSlider', 'econSlider', 'lostSlider', 'execSlider'].forEach(id =>
+    document.getElementById(id).addEventListener('input', runSimulation)
+  );
+  runSimulation();
+}
+
+function runSimulation(){
+  const goalM = +document.getElementById('goalSlider').value;
+  const econ = +document.getElementById('econSlider').value / 100;
+  const lost = +document.getElementById('lostSlider').value;
+  const exec = +document.getElementById('execSlider').value / 100;
+
+  document.getElementById('goalVal').textContent = '$' + goalM + 'M';
+  document.getElementById('econVal').textContent = (econ >= 0 ? '+' : '') + Math.round(econ * 100) + '%';
+  document.getElementById('lostVal').textContent = lost;
+  document.getElementById('execVal').textContent = Math.round(exec * 100) + '%';
+
+  const goal = goalM * 1000000;
+  const sorted = [...DONORS].sort((a, b) => b.expectedValue - a.expectedValue);
+  const pool = sorted.slice(lost);
+  const capacityMult = 1 + econ;
+  const pGiveMult = Math.min(1.15, exec) * (1 + econ * 0.5);
+
+  const ev = pool.reduce((s, d) =>
+    s + d.capacity * capacityMult * Math.min(0.95, Math.max(0, d.pGive * pGiveMult)), 0);
+
+  const TRIALS = 1000;
+  const outcomes = new Array(TRIALS);
+  for (let t = 0; t < TRIALS; t++){
+    let sum = 0;
+    for (const d of pool){
+      const p = Math.min(0.95, Math.max(0, d.pGive * pGiveMult));
+      if (Math.random() < p){
+        const noise = 1 + (Math.random() - 0.5) * 0.6;
+        sum += d.capacity * capacityMult * noise;
+      }
+    }
+    outcomes[t] = Math.max(0, sum);
+  }
+  outcomes.sort((a, b) => a - b);
+  const pHit = outcomes.filter(o => o >= goal).length / TRIALS;
+
+  document.getElementById('simEV').textContent = fmt$(Math.round(ev));
+
+  const coverageEl = document.getElementById('simCoverage');
+  const cov = ev / goal;
+  coverageEl.textContent = Math.round(cov * 100) + '%';
+  coverageEl.className = 'sim-result-value ' + (cov >= 1 ? 'good' : cov >= 0.8 ? '' : 'bad');
+
+  const probEl = document.getElementById('simProb');
+  probEl.textContent = Math.round(pHit * 100) + '%';
+  probEl.className = 'sim-result-value ' + (pHit >= 0.5 ? 'good' : pHit >= 0.25 ? '' : 'bad');
+
+  const min = outcomes[0];
+  const max = outcomes[TRIALS - 1];
+  const buckets = 22;
+  const width = (max - min) / buckets || 1;
+  const hist = new Array(buckets).fill(0);
+  const labels = [];
+  for (let i = 0; i < buckets; i++){
+    labels.push(fmt$(Math.round(min + i * width)));
+  }
+  outcomes.forEach(o => {
+    const idx = Math.min(buckets - 1, Math.floor((o - min) / width));
+    hist[idx]++;
+  });
+  const goalBucket = Math.max(0, Math.min(buckets, Math.floor((goal - min) / width)));
+  const colors = hist.map((_, i) => i >= goalBucket ? '#059669' : '#94a3b8');
+
+  if (distChart) distChart.destroy();
+  distChart = new Chart(document.getElementById('distChart').getContext('2d'), {
+    type: 'bar',
+    data: { labels, datasets: [{ label: 'Trials', data: hist, backgroundColor: colors, borderRadius: 3 }] },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { title: items => 'Outcome near ' + items[0].label } }
+      },
+      scales: {
+        x: { ticks: { maxRotation: 55, minRotation: 45, font: { size: 10 }, autoSkip: true, maxTicksLimit: 12 } },
+        y: { title: { display: true, text: 'Number of trials' }, beginAtZero: true }
+      }
+    }
+  });
+}
+
+document.querySelectorAll('.topnav button').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.topnav button').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('view-' + btn.dataset.view).classList.add('active');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  });
+});
+
+document.getElementById('aboutBtn').addEventListener('click', () =>
+  document.getElementById('aboutModal').classList.add('open'));
+document.getElementById('closeModal').addEventListener('click', () =>
+  document.getElementById('aboutModal').classList.remove('open'));
+document.getElementById('aboutModal').addEventListener('click', e => {
+  if (e.target.id === 'aboutModal') e.currentTarget.classList.remove('open');
+});
+
+buildDashboard();
+buildPortfolio();
+buildOptimizer();
+buildSimulator();
+</script>
+</body>
+</html>
